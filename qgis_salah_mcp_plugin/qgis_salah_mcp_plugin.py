@@ -8,7 +8,6 @@ import contextlib
 import io
 import json
 import os
-import select
 import socket
 import struct
 import sys
@@ -21,7 +20,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
-    QgsApplication, QgsCategorizedSymbolRenderer, QgsField,
+    Qgis, QgsApplication, QgsCategorizedSymbolRenderer, QgsField,
     QgsGraduatedSymbolRenderer, QgsLayoutExporter, QgsLayoutItemMap,
     QgsMessageLog, QgsPrintLayout, QgsProject, QgsRasterLayer,
     QgsRendererCategory, QgsStyle, QgsSymbol, QgsVectorLayer,
@@ -30,7 +29,7 @@ from qgis.utils import iface
 
 from .compat import (
     LAYER_RASTER, LAYER_VECTOR,
-    LAYOUT_SUCCESS, MSG_CRITICAL, MSG_INFO, MSG_WARNING,
+    MSG_CRITICAL, MSG_INFO, MSG_WARNING,
 )
 
 _DEFAULT_HOST = "localhost"

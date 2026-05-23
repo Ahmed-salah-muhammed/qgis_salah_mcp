@@ -1,13 +1,24 @@
 [general]
 name=QGIS Salah MCP
-qgisMinimumVersion=3.0
-description=A socket server that runs inside QGIS to execute MCP commands from Claude
-version=1.0
-author=Salah
-email=nadasaleh5560@gmail.com
-about=This plugin starts a TCP socket server on port 9876 inside QGIS. The companion MCP server (src/qgis_salah_mcp) connects to it, allowing Claude to control QGIS via the Model Context Protocol.
+qgisMinimumVersion=3.34
+description=A TCP socket server that lets Claude AI control QGIS via the Model Context Protocol (MCP)
+version=1.0.0
+author=Ahmed Salah Muhammed
+email=ahmedsalah219013@gmail.com
+about=This plugin starts a non-blocking TCP socket server (default port 8765) inside QGIS.
+    A companion FastMCP server connects to it, bridging Claude Desktop to QGIS over the
+    Model Context Protocol. Once connected, Claude can load layers, run spatial analysis
+    (buffer, clip, dissolve, reproject, spatial join), manage symbology, query features,
+    execute PyQGIS code, and export maps — all through natural language.
+
+    Source and companion MCP server: https://github.com/Ahmed-salah-muhammed/qgis_salah_mcp
+
 category=Plugins
+tags=mcp, claude, ai, llm, automation, spatial analysis, vector, raster
+icon=icon.png
 homepage=https://github.com/Ahmed-salah-muhammed/qgis_salah_mcp
 tracker=https://github.com/Ahmed-salah-muhammed/qgis_salah_mcp/issues
 repository=https://github.com/Ahmed-salah-muhammed/qgis_salah_mcp
 hasProcessingProvider=no
+experimental=True
+deprecated=False
