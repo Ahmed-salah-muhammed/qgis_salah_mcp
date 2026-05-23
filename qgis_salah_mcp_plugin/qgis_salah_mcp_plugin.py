@@ -587,11 +587,14 @@ class QgisSalahMCPServer(QObject):
     # ------------------------------------------------------------------
 
     def _cmd_execute_code(self, code: str):
+        # exec is intentional — this tool exists to run user-supplied PyQGIS code
+        # inside QGIS, equivalent to the QGIS Python console. The MCP server only
+        # accepts connections from localhost, so exposure is limited to the local machine.
         out, err = io.StringIO(), io.StringIO()
         old_out, old_err = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = out, err
         try:
-            exec(code, {"iface": iface, "QgsProject": QgsProject, "__builtins__": __builtins__})
+            exec(code, {"iface": iface, "QgsProject": QgsProject, "__builtins__": __builtins__})  # nosec B102
         finally:
             sys.stdout, sys.stderr = old_out, old_err
         return {"stdout": out.getvalue(), "stderr": err.getvalue()}
