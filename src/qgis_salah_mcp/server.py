@@ -6,8 +6,11 @@ FastMCP server that connects Claude to QGIS via the QGIS Salah MCP plugin TCP so
 import json
 import logging
 import socket
+import struct
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Dict
+
+_HEADER = struct.Struct(">I")   # 4-byte big-endian length prefix (matches plugin protocol)
 
 from mcp.server.fastmcp import FastMCP
 
@@ -25,7 +28,7 @@ logger = logging.getLogger("QgisSalahMCP")
 class QgisSalahClient:
     """TCP client that talks to the QGIS Salah MCP plugin socket server."""
 
-    def __init__(self, host: str = "localhost", port: int = 9876):
+    def __init__(self, host: str = "localhost", port: int = 8765):
         self.host = host
         self.port = port
         self.sock: socket.socket | None = None
@@ -53,18 +56,24 @@ class QgisSalahClient:
     def send_command(self, command_type: str, params: dict | None = None) -> dict:
         if not self.sock:
             raise ConnectionError("Not connected to QGIS plugin")
-        payload = json.dumps({"type": command_type, "params": params or {}}).encode("utf-8")
-        self.sock.sendall(payload)
+        # Length-prefixed framing: [4-byte big-endian length][JSON body]
+        body = json.dumps({"type": command_type, "params": params or {}}).encode("utf-8")
+        self.sock.sendall(_HEADER.pack(len(body)) + body)
+        # Read length-prefixed response
+        raw = b""
+        while len(raw) < 4:
+            chunk = self.sock.recv(4 - len(raw))
+            if not chunk:
+                raise ConnectionError("Connection closed by QGIS plugin")
+            raw += chunk
+        msg_len = _HEADER.unpack(raw)[0]
         data = b""
-        while True:
-            chunk = self.sock.recv(65536)
+        while len(data) < msg_len:
+            chunk = self.sock.recv(min(65536, msg_len - len(data)))
             if not chunk:
                 raise ConnectionError("Connection closed by QGIS plugin")
             data += chunk
-            try:
-                return json.loads(data.decode("utf-8"))
-            except json.JSONDecodeError:
-                continue
+        return json.loads(data.decode("utf-8"))
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +100,7 @@ def get_client() -> QgisSalahClient:
             "Cannot reach QGIS. Open QGIS, enable the 'QGIS Salah MCP' plugin, "
             "and click 'Start Server' in the dock widget."
         )
-    logger.info("Connected to QGIS plugin on port 9876")
+    logger.info("Connected to QGIS plugin on port 8765")
     return _client
 
 
