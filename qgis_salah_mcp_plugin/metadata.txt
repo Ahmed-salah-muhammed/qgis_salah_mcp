@@ -1,0 +1,13 @@
+[general]
+name=QGIS Salah MCP
+qgisMinimumVersion=3.0
+description=A socket server that runs inside QGIS to execute MCP commands from Claude
+version=1.0
+author=Salah
+email=nadasaleh5560@gmail.com
+about=This plugin starts a TCP socket server on port 9876 inside QGIS. The companion MCP server (src/qgis_salah_mcp) connects to it, allowing Claude to control QGIS via the Model Context Protocol.
+category=Plugins
+homepage=https://github.com/your-username/qgis_salah_mcp
+tracker=https://github.com/your-username/qgis_salah_mcp/issues
+repository=https://github.com/your-username/qgis_salah_mcp
+hasProcessingProvider=no
