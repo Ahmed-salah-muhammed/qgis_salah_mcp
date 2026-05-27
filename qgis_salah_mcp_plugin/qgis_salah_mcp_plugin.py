@@ -623,7 +623,7 @@ class QgisSalahDockWidget(QDockWidget):
         super().__init__("QGIS Salah MCP", parent)
         self.server = server
         self.setWindowIcon(icon)
-        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self._build_ui()
 
     def _build_ui(self):
@@ -703,7 +703,7 @@ class QGISSalahMCPPlugin:
     def run(self):
         if not self.dockwidget:
             self.dockwidget = QDockWidget("QGIS Salah MCP", self.iface.mainWindow())
-            self.dockwidget.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+            self.dockwidget.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
             
             self.plugin_widget = QWidget()
             layout = QVBoxLayout(self.plugin_widget)
@@ -725,7 +725,7 @@ class QGISSalahMCPPlugin:
             layout.addWidget(self.start_button)
             
             self.dockwidget.setWidget(self.plugin_widget)
-            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
+            self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dockwidget)
         
         if self.dockwidget.isVisible():
             self.dockwidget.hide()
