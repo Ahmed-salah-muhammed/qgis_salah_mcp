@@ -4,28 +4,49 @@ TCP socket server running inside QGIS, using length-prefixed JSON framing.
 Protocol: 4-byte big-endian message length header + UTF-8 JSON body.
 """
 
-import contextlib
-import io
-import json
 import os
+import sys
+import json
+import io
 import socket
 import struct
-import sys
 import traceback
+import contextlib
+
 
 from qgis.PyQt.QtCore import Qt, QObject, QTimer, QVariant
+from qgis.PyQt.QtGui import QIcon
+
+try:
+    from qgis.PyQt.QtWidgets import QAction
+except ImportError:
+    from qgis.PyQt.QtGui import QAction
+
 from qgis.PyQt.QtWidgets import (
-    QAction, QDockWidget, QHBoxLayout, QLabel,
-    QPushButton, QSpinBox, QVBoxLayout, QWidget,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QPushButton, QSpinBox, QDockWidget
 )
+
+
+from qgis.utils import iface
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
-    Qgis, QgsApplication, QgsCategorizedSymbolRenderer, QgsField,
-    QgsGraduatedSymbolRenderer, QgsLayoutExporter, QgsLayoutItemMap,
-    QgsMessageLog, QgsPrintLayout, QgsProject, QgsRasterLayer,
-    QgsRendererCategory, QgsStyle, QgsSymbol, QgsVectorLayer,
+    Qgis, 
+    QgsApplication, 
+    QgsProject, 
+    QgsMessageLog,
+    QgsVectorLayer, 
+    QgsRasterLayer, 
+    QgsField,
+    QgsStyle, 
+    QgsSymbol,
+    QgsCategorizedSymbolRenderer, 
+    QgsRendererCategory,
+    QgsGraduatedSymbolRenderer, 
+    QgsPrintLayout, 
+    QgsLayoutItemMap,
+    QgsLayoutExporter
 )
-from qgis.utils import iface
 
 from .compat import (
     LAYER_RASTER, LAYER_VECTOR,
@@ -38,10 +59,6 @@ _RECV_CHUNK = 65536
 _MAX_MSG_SIZE = 10 * 1024 * 1024          # 10 MB
 _HEADER = struct.Struct(">I")              # 4-byte big-endian uint
 _LOG_TAG = "QgisSalahMCP"
-
-
-def classFactory(iface):
-    return QgisSalahMCPPlugin(iface)
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +244,7 @@ class QgisSalahMCPServer(QObject):
     def _cmd_get_qgis_info(self):
         return {
             "qgis_version": Qgis.QGIS_VERSION,
-            "plugin": "QGIS Salah MCP v1.0",
+            "plugin": "QGIS Salah MCP v1.1",
             "port": self.port,
         }
 
@@ -587,9 +604,6 @@ class QgisSalahMCPServer(QObject):
     # ------------------------------------------------------------------
 
     def _cmd_execute_code(self, code: str):
-        # exec is intentional — this tool exists to run user-supplied PyQGIS code
-        # inside QGIS, equivalent to the QGIS Python console. The MCP server only
-        # accepts connections from localhost, so exposure is limited to the local machine.
         out, err = io.StringIO(), io.StringIO()
         old_out, old_err = sys.stdout, sys.stderr
         sys.stdout, sys.stderr = out, err
@@ -605,9 +619,10 @@ class QgisSalahMCPServer(QObject):
 # ---------------------------------------------------------------------------
 
 class QgisSalahDockWidget(QDockWidget):
-    def __init__(self, server: QgisSalahMCPServer, parent=None):
+    def __init__(self, server: QgisSalahMCPServer, icon: QIcon, parent=None):
         super().__init__("QGIS Salah MCP", parent)
         self.server = server
+        self.setWindowIcon(icon)
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._build_ui()
 
@@ -655,31 +670,90 @@ class QgisSalahDockWidget(QDockWidget):
 # Plugin entry point
 # ---------------------------------------------------------------------------
 
-class QgisSalahMCPPlugin:
+class QGISSalahMCPPlugin:
     def __init__(self, iface):
         self.iface = iface
-        self.server = QgisSalahMCPServer()
-        self.dock: QgisSalahDockWidget | None = None
-        self.action: QAction | None = None
+        self.plugin_dir = os.path.dirname(__file__)
+        self.action = None
+        self.dockwidget = None
+        self._server = QgisSalahMCPServer()
 
     def initGui(self):
-        self.action = QAction("QGIS Salah MCP", self.iface.mainWindow())
-        self.action.triggered.connect(self._show_dock)
-        self.iface.addPluginToMenu("QGIS Salah MCP", self.action)
-        self.dock = QgisSalahDockWidget(self.server, self.iface.mainWindow())
-        self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
+        icon_path = os.path.join(self.plugin_dir, 'icon.png')
+        
+        self.action = QAction(
+            QIcon(icon_path), 
+            "QGIS Salah MCP", 
+            self.iface.mainWindow()
+        )
+        
+        self.action.triggered.connect(self.run)
+        self.iface.addToolBarIcon(self.action)
+        self.iface.addPluginToMenu("&QGIS Salah MCP", self.action)
 
     def unload(self):
-        self.server.stop()
-        if self.dock:
-            self.iface.removeDockWidget(self.dock)
-            self.dock.deleteLater()
-            self.dock = None
         if self.action:
-            self.iface.removePluginMenu("QGIS Salah MCP", self.action)
-            self.action = None
+            self.iface.removePluginMenu("&QGIS Salah MCP", self.action)
+            self.iface.removeToolBarIcon(self.action)
+        if self._server.is_running:
+            self._server.stop()
+        if self.dockwidget:
+            self.iface.removeDockWidget(self.dockwidget)
 
-    def _show_dock(self):
-        if self.dock:
-            self.dock.show()
-            self.dock.raise_()
+    def run(self):
+        if not self.dockwidget:
+            self.dockwidget = QDockWidget("QGIS Salah MCP", self.iface.mainWindow())
+            self.dockwidget.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+            
+            self.plugin_widget = QWidget()
+            layout = QVBoxLayout(self.plugin_widget)
+            
+            self.status_label = QLabel("Status: Stopped")
+            layout.addWidget(self.status_label)
+            
+            port_layout = QVBoxLayout()
+            port_label = QLabel("Port:")
+            self.port_spinbox = QSpinBox()
+            self.port_spinbox.setRange(1, 65535)
+            self.port_spinbox.setValue(8765)  
+            port_layout.addWidget(port_label)
+            port_layout.addWidget(self.port_spinbox)
+            layout.addLayout(port_layout)
+            
+            self.start_button = QPushButton("Start Server")
+            self.start_button.clicked.connect(self.toggle_server)
+            layout.addWidget(self.start_button)
+            
+            self.dockwidget.setWidget(self.plugin_widget)
+            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
+        
+        if self.dockwidget.isVisible():
+            self.dockwidget.hide()
+        else:
+            self.dockwidget.show()
+
+    def toggle_server(self):
+        if not self._server.is_running:
+            self.start_mcp_server()
+        else:
+            self.stop_mcp_server()
+
+    def start_mcp_server(self):
+        current_port = self.port_spinbox.value()
+        ok = self._server.start(port=current_port)
+        if ok:
+            self.status_label.setText(f"Status: Running on port: {current_port}")
+            self.start_button.setText("Stop Server")
+            self.port_spinbox.setEnabled(False)
+        else:
+            self.status_label.setText("Status: Failed to start (check QGIS log)")
+
+    def stop_mcp_server(self):
+        self._server.stop()
+        self.status_label.setText("Status: Stopped")
+        self.start_button.setText("Start Server")
+        self.port_spinbox.setEnabled(True)
+
+
+def classFactory(iface):
+    return QGISSalahMCPPlugin(iface)
