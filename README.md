@@ -80,6 +80,28 @@ Edit `claude_desktop_config.json`:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
+**Option A — local venv (recommended for local development)**
+
+First create the venv and install the bridge server:
+```bash
+cd /path/to/this/repo
+python3 -m venv .venv
+.venv/bin/pip install -e .
+```
+
+Then add to `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "qgis_salah": {
+      "command": "/path/to/this/repo/.venv/bin/qgis-salah-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Option B — uvx (no manual install needed)**
 ```json
 {
   "mcpServers": {
@@ -90,6 +112,8 @@ Edit `claude_desktop_config.json`:
   }
 }
 ```
+
+> **Important:** Always point `command` at the installed `qgis-salah-mcp` entry-point (inside the venv or via `uvx`). Do **not** pass `server.py` directly to Python — the file uses package-relative imports that only work when the package is properly installed.
 
 Restart Claude Desktop. The QGIS tools will appear in Claude's tool panel.
 
@@ -270,6 +294,59 @@ That's all. The socket server auto-routes any command whose name matches a `_cmd
 - Python 3.10+
 - `uv` package manager → [install](https://docs.astral.sh/uv/getting-started/installation/)
 - Claude Desktop with an Anthropic account
+
+---
+
+## Troubleshooting
+
+### Bridge server crashes immediately — `TypeError: unexpected keyword argument 'description'`
+
+**Cause:** `FastMCP.__init__()` in `mcp` ≥ 1.3 uses `instructions=`, not `description=`.
+
+**Fix:** In `src/qgis_salah_mcp/server.py`, the `FastMCP(...)` call must use `instructions=`:
+
+```python
+# Wrong
+mcp = FastMCP("QGIS_Salah_MCP", description="...", lifespan=lifespan)
+
+# Correct
+mcp = FastMCP("QGIS_Salah_MCP", instructions="...", lifespan=lifespan)
+```
+
+This was fixed in the current codebase.
+
+---
+
+### Claude Desktop shows "server disconnected" or tools never appear
+
+**Cause:** The config JSON was pointing Python at `server.py` as a plain script:
+
+```json
+// Wrong — package imports fail when run as a plain script
+"command": "/path/to/.venv/bin/python",
+"args": ["/path/to/src/qgis_salah_mcp/server.py"]
+```
+
+`server.py` uses `from qgis_salah_mcp.server import main` internally (via the entry-point wrapper), which only resolves when the package is installed — not when the file is executed as a loose script.
+
+**Fix:** Use the installed entry-point:
+
+```json
+// Correct
+"command": "/path/to/.venv/bin/qgis-salah-mcp",
+"args": []
+```
+
+---
+
+### Tools connect but every call returns "Cannot reach QGIS"
+
+The bridge server started successfully but the QGIS plugin socket is not running.
+
+1. Open QGIS
+2. Enable the **QGIS Salah MCP** plugin (Plugins → Manage and Install Plugins)
+3. Click **Start Server** in the dock widget (default port: 8765)
+4. Check the QGIS Log Messages panel — you should see `Server started on localhost:8765`
 
 ---
 

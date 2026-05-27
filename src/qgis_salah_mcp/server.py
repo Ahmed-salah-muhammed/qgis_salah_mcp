@@ -128,7 +128,7 @@ async def lifespan(_server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
 
 mcp = FastMCP(
     "QGIS_Salah_MCP",
-    description="Control QGIS GIS operations through Claude via the Model Context Protocol",
+    instructions="Control QGIS GIS operations through Claude via the Model Context Protocol",
     lifespan=lifespan,
 )
 
