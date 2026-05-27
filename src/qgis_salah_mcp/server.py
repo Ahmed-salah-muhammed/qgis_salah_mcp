@@ -218,6 +218,22 @@ def load_raster_layer(path: str, name: str = None) -> str:
 
 
 @mcp.tool()
+def add_basemap(basemap: str = "osm") -> str:
+    """Add an XYZ tile basemap to the current QGIS project. The layer is placed at the bottom of the layer panel.
+
+    Args:
+        basemap: Basemap key. Options:
+            'osm'          — OpenStreetMap Standard (default)
+            'osm_hot'      — OSM Humanitarian
+            'carto_light'  — CartoDB Positron (light grey)
+            'carto_dark'   — CartoDB Dark Matter
+            'esri_imagery' — Esri World Imagery (satellite)
+            'esri_topo'    — Esri World Topo Map
+    """
+    return _run("add_basemap", basemap=basemap)
+
+
+@mcp.tool()
 def remove_layer(layer_name: str) -> str:
     """Remove a layer from the current QGIS project.
 

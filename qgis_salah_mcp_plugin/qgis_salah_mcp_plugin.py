@@ -31,21 +31,22 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
-    Qgis, 
-    QgsApplication, 
-    QgsProject, 
+    Qgis,
+    QgsApplication,
+    QgsProject,
     QgsMessageLog,
-    QgsVectorLayer, 
-    QgsRasterLayer, 
+    QgsVectorLayer,
+    QgsRasterLayer,
     QgsField,
-    QgsStyle, 
+    QgsStyle,
     QgsSymbol,
-    QgsCategorizedSymbolRenderer, 
+    QgsCategorizedSymbolRenderer,
     QgsRendererCategory,
-    QgsGraduatedSymbolRenderer, 
-    QgsPrintLayout, 
+    QgsGraduatedSymbolRenderer,
+    QgsPrintLayout,
     QgsLayoutItemMap,
-    QgsLayoutExporter
+    QgsLayoutExporter,
+    QgsLayerTreeLayer,
 )
 
 from .compat import (
@@ -315,6 +316,29 @@ class QgisSalahMCPServer(QObject):
             raise ValueError("Invalid raster layer — check file format")
         QgsProject.instance().addMapLayer(layer)
         return f"Raster layer loaded: {name}"
+
+    def _cmd_add_basemap(self, basemap: str = "osm"):
+        from urllib.parse import quote
+        BASEMAPS = {
+            "osm":          ("OpenStreetMap",        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"),
+            "osm_hot":      ("OSM Humanitarian",     "https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"),
+            "carto_light":  ("CartoDB Light",        "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"),
+            "carto_dark":   ("CartoDB Dark",         "https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"),
+            "esri_imagery": ("Esri World Imagery",   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"),
+            "esri_topo":    ("Esri World Topo",      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"),
+        }
+        key = basemap.lower()
+        if key not in BASEMAPS:
+            raise ValueError(f"Unknown basemap '{basemap}'. Available: {', '.join(BASEMAPS)}")
+        name, url = BASEMAPS[key]
+        encoded_url = quote(url, safe=":/.?=&")
+        uri = f"type=xyz&url={encoded_url}&zmax=19&zmin=0"
+        layer = QgsRasterLayer(uri, name, "wms")
+        if not layer.isValid():
+            raise ValueError(f"Failed to create basemap layer '{name}' — check network access")
+        QgsProject.instance().addMapLayer(layer, False)
+        QgsProject.instance().layerTreeRoot().insertChildNode(-1, QgsLayerTreeLayer(layer))
+        return f"Basemap added: {name}"
 
     def _cmd_remove_layer(self, layer_name: str):
         layer = self._layer(layer_name)
